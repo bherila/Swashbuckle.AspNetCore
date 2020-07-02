@@ -8,8 +8,10 @@ using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.ApiExplorer;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Metadata;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Options;
+using Swashbuckle.AspNetCore.Annotations;
 using Swashbuckle.AspNetCore.AzureFunctions.Annotations;
 using Swashbuckle.AspNetCore.AzureFunctions.Application;
 
@@ -55,7 +57,7 @@ namespace Swashbuckle.AspNetCore.AzureFunctions.Providers
                 apiDescrGroup.Add(group);
             }
 
-            // TODO: is Version necessery? 
+            // TODO: is Version necessary? 
             ApiDescriptionGroups = new ApiDescriptionGroupCollection(new ReadOnlyCollection<ApiDescriptionGroup>(apiDescrGroup), 1);
         }
 
@@ -107,6 +109,22 @@ namespace Swashbuckle.AspNetCore.AzureFunctions.Providers
                     ParameterType = parameter.Type
                 });
                 description.ParameterDescriptions.Add(parameter);
+            }
+
+            foreach (var responseType in methodInfo.GetCustomAttributes<SwaggerResponseAttribute>()) {
+                description.SupportedResponseTypes.Add(new ApiResponseType() {
+                    StatusCode = responseType.StatusCode,
+                    Type = responseType.Type,
+                    ModelMetadata = new EmptyModelMetadataProvider().GetMetadataForType(responseType.Type),
+                    ApiResponseFormats = new List<ApiResponseFormat>() {
+                        new ApiResponseFormat() {MediaType = "application/json"}
+                    }
+                });
+            }
+
+            var def = description.SupportedResponseTypes.FirstOrDefault(x => x.StatusCode == 200);
+            if (def != null) {
+                def.IsDefaultResponse = true;
             }
 
             return description;
